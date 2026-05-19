@@ -1,0 +1,40 @@
+name: Docker Security Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: docker build -t security-scanner-app ./app
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: security-scanner-app
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Generate Trivy Report
+        if: always()
+        run: |
+          docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy image security-scanner-app > trivy-report.txt
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
